@@ -38,9 +38,7 @@ xos-users@googlegroups.com
 * Contributors
 xos-developers@googlegroups.com
 
-
-#####Contributor: Rohit sukumaran
-
+* Contributor: Rohit sukumaran
 All code done in spl/spl_progs/
 
 
@@ -60,4 +58,8 @@ to compile single program
 to load single program
 ```
 ./load [apl|spl] [flags] [filename]
+```
+to remove single program from disk
+```
+./rm [flags] filename
 ```
