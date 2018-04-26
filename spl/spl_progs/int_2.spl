@@ -1,0 +1,96 @@
+alias physicalSP S0;
+alias syscallno S1;
+alias PID S2;
+alias return S3;
+alias currentPCB S14;
+
+physicalSP = ([PTBR + 2*(SP/512)]*512) + (SP%512);
+syscallno = [physicalSP - 1];
+PID = (PTBR-PAGE_TABLE)/8;
+currentPCB = READY_LIST + 32*PID;
+
+if(syscallno==2) then
+	alias fat S4;
+	alias ofti S5;
+	alias filename S6;
+	alias i S15;
+	filename = [physicalSP - 3];
+	i=0;
+	return = -1;
+	while(i<64) do
+		if(filename==[FAT+8*i]) then
+			return = 0;
+			break;
+		endif;
+		i = i+1;
+	endwhile;
+	if(return==0) then
+		fat=i;
+	else
+		fat=-1;
+	endif;
+	
+	if (return==0) then
+		i=0;
+		while(i<64 && fat!=[FILE_TABLE+2*i]) do
+			i = i+1;	
+		endwhile;
+		if(i==64) then
+			i=0;
+			while(i<64 && [FILE_TABLE + 2*i]!=-1) do
+				i=i+1;
+			endwhile;
+		endif;
+		if(i==64) then
+			return = -1;
+			ofti =-1;
+		else
+			ofti=i;
+		endif;
+	endif;
+	
+	if (return==0) then
+		i=0;
+		while(i<8 && [currentPCB+15+2*i]!=-1) do
+			i = i+1;
+		endwhile;
+		if(i==8) then
+			return = -1;
+		endif;
+	endif;
+		
+	if(return==0) then
+		[currentPCB+15+2*i]=ofti;
+		[currentPCB+15+2*i+1]=0;
+		return = i;
+		[FILE_TABLE+2*ofti]=fat;
+		[FILE_TABLE+2*ofti+1] = [FILE_TABLE+2*ofti+1] + 1;
+	endif;
+endif;
+
+if (syscallno==3) then
+	alias fd S4;
+	alias ofti S5;
+	fd = [physicalSP-3];
+	return=0;
+
+	if(fd<0 || fd>7) then
+		return = -1;
+	endif;
+	ofti = [currentPCB+15+2*fd];
+	if(ofti==-1) then
+		return=-1;
+	endif;
+	
+	if(return==0) then
+		[currentPCB+15+2*fd]=-1;
+		[currentPCB+15+2*fd+1]=-1;
+		[FILE_TABLE+2*ofti+1]=[FILE_TABLE+2*ofti+1]-1;
+		if([FILE_TABLE+2*ofti+1]==0) then
+			[FILE_TABLE+2*ofti]=-1;
+		endif;
+	endif;
+endif;
+	
+[physicalSP - 2] = return;
+ireturn;

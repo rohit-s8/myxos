@@ -1,0 +1,15 @@
+#!/bin/bash
+
+for i in `seq 1 7`; do
+	./compile spl --int=$i int_$i.spl
+	./load spl --int=$i int$i.xsm
+done
+
+./compile spl --int=timer timer.spl
+./load spl --int=timer timer.xsm
+
+./compile spl --exhandler exhandler.spl
+./load spl --exhandler exhandler.xsm
+
+./compile spl --os os_startup.spl
+./load spl --os os_startup.xsm

@@ -1,0 +1,117 @@
+alias physicalSP S0;
+alias syscallno S1;
+alias PID S2;
+alias currentPCB S3;
+alias newPCB S4;
+alias ofti S5;
+alias i S15;
+
+physicalSP = ([PTBR+2*(SP/512)]*512)+(SP%512);
+syscallno = [physicalSP-1];
+PID = (PTBR-PAGE_TABLE)/8;
+currentPCB = READY_LIST + 32*PID;
+
+i=0;
+while(i<32 && syscallno!=13) do
+	alias tempPCB S6;
+	tempPCB = READY_LIST+32*i;
+	if([tempPCB+1]==(100+PID)) then
+		[tempPCB+1]=1;
+	endif;
+	i=i+1;
+endwhile;
+if(syscallno==14) then
+	[physicalSP-2]=0;
+	ireturn;
+endif;
+
+i=(PID+1)%32;
+while(i!=PID) do
+	newPCB = READY_LIST+32*i;
+	if([newPCB+1]==1) then
+		break;
+	endif;
+	i=(i+1)%32;
+endwhile;
+if(i==PID && syscallno==10) then
+	halt;
+endif;
+
+if(syscallno==13) then
+	alias wpid S6;
+	wpid = [physicalSP-3];
+	if([READY_LIST+32*wpid+1]==0 || [READY_LIST+32*wpid+1]==2) then
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;
+	[currentPCB+1]=100+wpid;
+	[currentPCB+2]=BP;
+	[currentPCB+3]=SP-1;
+	[currentPCB+4]=[physicalSP];
+	[currentPCB+5]=PTBR;
+	[currentPCB+6]=PTLR;
+	[currentPCB+7]=R0;
+	[currentPCB+8]=R1;
+	[currentPCB+9]=R2;
+	[currentPCB+10]=R3;
+	[currentPCB+11]=R4;
+	[currentPCB+12]=R5;
+	[currentPCB+13]=R6;
+	[currentPCB+14]=R7;
+endif;
+
+
+if(syscallno==10) then
+	[currentPCB+1]=0;
+	i=0;
+	while(i<8) do
+		ofti = [currentPCB+15+2*i];
+		if(ofti==-1) then
+			i=i+1;
+			continue;
+		endif;
+		[currentPCB+15+2*i]=-1;
+		[currentPCB+15+2*i+1]=-1;
+		[FILE_TABLE+2*ofti+1] = [FILE_TABLE+2*ofti+1]-1;
+		if([FILE_TABLE+2*ofti+1]==0) then
+			[FILE_TABLE+2*ofti]=-1;
+		endif;
+		i=i+1;
+	endwhile;
+
+	i=0;
+	while(i<4) do
+		alias p S6;
+		alias ref S7;
+		p = [PTBR+2*i];
+		ref = [PTBR+2*i+1];
+		if(ref=="01" || ref=="11") then
+			[MEM_LIST+p]=[MEM_LIST+p]-1;
+		else
+			if(p>=448) then
+				[DISK_LIST+p]=[DISK_LIST+p]-1;
+			endif;
+		endif;
+		[PTBR+2*i]=-1;
+		[PTBR+2*i+1]="00";
+		i=i+1;
+	endwhile;
+endif;
+
+[newPCB+1]=2;
+BP = [newPCB+2];
+SP = [newPCB+3];
+PTBR = [newPCB+5];
+PTLR = [newPCB+6];
+R0 = [newPCB+7];
+R1 = [newPCB+8];
+R2 = [newPCB+9];
+R3 = [newPCB+10];
+R4 = [newPCB+11];
+R5 = [newPCB+12];
+R6 = [newPCB+13];
+R7 = [newPCB+14];
+SP = SP+1;
+physicalSP = ([PTBR+2*(SP/512)]*512)+(SP%512);
+[physicalSP]=[newPCB+4];
+ireturn;

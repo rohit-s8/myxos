@@ -1,0 +1,135 @@
+//
+// global variables
+//
+alias physicalSP S0;
+alias cause S1;
+alias VPnum S2;
+alias ip S3;
+alias page S4;
+alias i S15;
+
+physicalSP = 26*512 + (SP%512);
+
+//
+//extracting the fields
+//
+cause = (EFR%10);
+VPnum = (EFR/10)%100;
+ip = EFR/1000;
+page = [PTBR+2*VPnum];
+
+//
+//checking the cause and physical page entry
+//exit if cause not 0 or page table entry is -1
+//
+if(cause!=0 || page==-1) then
+	print ip;
+	print cause;
+	print page;
+	print "Exception";
+	[physicalSP-1]=10;
+	inline "JMP 11776";
+endif;
+
+//
+//search for a free page in memory
+//load the required page
+//if no free page, proceed with page replacement
+//
+i=27;
+while(i<64) do
+	if([MEM_LIST+i]==0) then
+		break;
+	endif;
+	i=i+1;
+endwhile;
+
+if(page>=448) then
+	[DISK_LIST+page]=[DISK_LIST+page]-1;
+endif;
+
+//
+//page replacement
+//
+if(i==64) then
+	alias curr_PTBR S5;	//page table of replaced page
+	alias j S14;		//physical page number of replaced page
+	alias PID S6;
+	PID = (PTBR-PAGE_TABLE)/8;
+	if(PID>=32) then
+		PID = 32 + (PTBR-1472)/8;
+	endif;
+
+	while(1) do
+		if(PID<32) then
+			curr_PTBR = PAGE_TABLE+8*PID;
+		else
+			curr_PTBR = 1472 + 8*(PID-32);
+		endif;
+
+		if([curr_PTBR+6]==-1) then
+			PID = (PID+1)%40;
+			continue;
+		endif;
+
+		i=0;		//index of the replaced page in page table
+		while(i<3) do
+			j = [curr_PTBR+2*i];
+			if([curr_PTBR+2*i+1]=="01" && [MEM_LIST+j]<2) then
+				break;
+			endif;
+			if([curr_PTBR+2*i+1]=="11") then
+				[curr_PTBR+2*i+1]="01";
+			endif;
+			i=i+1;
+		endwhile;
+		if(i<3) then
+			break;
+		else
+			PID = (PID+1)%40;
+		endif;
+	endwhile;	
+
+	//
+	//find a swap page to use
+	//
+	alias diskpage S7;
+	diskpage=448;
+	while(diskpage<512 && [DISK_LIST+diskpage]!=0) do
+		diskpage=diskpage+1;
+	endwhile;
+	if(diskpage==512) then
+		print "No Disk space!";
+		[physicalSP-1]=10;
+		inline "JMP 11776";
+	endif;
+
+	//
+	//complete the replacement algorithm
+	//
+	store(j,diskpage);
+	[curr_PTBR+2*i]=diskpage;
+	[curr_PTBR+2*i+1]="10";
+	[DISK_LIST+diskpage]=1;
+	load(j,page);
+	[PTBR+2*VPnum]=j;
+	[PTBR+2*VPnum+1]="11";
+
+//
+//load disk page into free memory page
+//
+else
+	load(i,page);
+	[MEM_LIST+i]=1;
+	[PTBR+2*VPnum]=i;
+	[PTBR+2*VPnum+1]="11";	
+endif;
+
+//
+//put the ip adress on top of the stack
+//and return
+//
+SP = SP+1;
+physicalSP = ([PTBR+6]*512)+(SP%512);
+[physicalSP]=ip;
+ireturn;

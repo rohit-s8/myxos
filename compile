@@ -1,0 +1,44 @@
+#!/bin/bash
+
+##
+##compile.sh [type] [optional flag] [filename]
+##
+usage() {
+echo usage: compile.sh \[type\] \[optional flag\] \[filename\]
+echo type: apl,spl
+echo optional flag: spl flags
+echo filename: name of file to be compiled
+}
+
+PWD=$(pwd)
+t=$1
+flag=""
+filename=""
+if [[ $# -eq 2 ]]; then
+	filename=$2
+elif [[ $# -eq 3 ]]; then
+	flag=$2
+	filename=$3
+else
+	echo Incorrect paramaters
+	usage
+	exit 1;
+fi
+
+if [[ $t == "apl" ]]; then
+	cd apl
+	./apl $(echo apl_progs/$filename) > file
+	cat file
+	rm file
+elif [[ $t == "spl" ]]; then
+	cd spl
+	./spl $(echo $flag spl_progs/$filename) > file
+	cat file
+	rm file
+else
+	echo Incorrect paramaters
+	usage
+	exit 1;
+fi
+cd $PWD
+exit 0

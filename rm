@@ -1,0 +1,25 @@
+#!/bin/bash
+
+##
+##usage: rm --[flag] [filename]
+##
+PWD=$(pwd)
+cd
+cd myxos
+cd xfs-interface
+rmstr="rm "
+
+if [[ $# -ne 2 ]]; then
+	echo Incorrect parameters
+	echo usage: rm --\[flag\] \[filename\]
+	echo flag: exec,data
+	echo filename: xfs filename
+	exit 1
+fi
+
+rmstr=$rmstr$(echo $1" "$2)
+./xfs-interface $rmstr > file
+cat file
+rm file
+cd $PWD
+exit 0

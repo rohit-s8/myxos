@@ -1,0 +1,34 @@
+#!/bin/bash
+
+if [[ $# -lt 3 ]]; then
+	echo "arguments missing"
+	echo "usage: load.sh <type> <flag> <name>"
+	echo "flag: same as flags in xfs-interface"
+	echo "type: apl,spl"
+	echo "name: file to load without path"
+	exit 1
+fi
+
+PWD=$(pwd)
+xfs=$PWD/xfs-interface
+flag=$2
+t=$1
+name=$3
+lstr="load $flag $HOME/myxos/"
+
+if [[ "$t" == "apl" ]]; then
+	lstr=$(echo $lstr"apl/apl_progs/"$name)
+elif [[ "$t" == "spl" ]]; then
+	lstr=$(echo $lstr"spl/spl_progs/"$name)
+else
+	echo "wrong program type used"
+	echo "must be either 'apl' or 'spl'"
+	exit 1
+fi
+
+cd $xfs
+./xfs-interface $lstr > file
+cat file
+rm file
+cd $PWD
+exit 0

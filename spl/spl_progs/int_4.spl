@@ -1,0 +1,61 @@
+alias physicalSP S0;
+alias PID S1;
+alias currentPCB S2;
+alias syscallno S3;
+
+physicalSP = ([PTBR + 2*(SP/512)])*512 + (SP%512);
+PID = (PTBR-PAGE_TABLE)/8;
+currentPCB = READY_LIST + 32*PID;
+syscallno = [physicalSP-1];
+
+if(syscallno==5) then
+	alias fd S4;
+	alias writeword S5;
+	alias ofti S6;
+	alias fat S7;
+	alias basic_block S8;
+	alias data_block S9;
+	alias lseek S10;
+
+	writeword = [physicalSP-3];
+	fd = [physicalSP-4];
+	if(fd<0 || fd>7) then
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;
+	ofti = [currentPCB+15+2*fd];
+	lseek = [currentPCB+15+2*fd+1];
+	if(ofti==-1) then
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;
+	
+	fat = [FILE_TABLE+2*ofti];
+	basic_block = [FAT+8*fat+2];
+	load(1,basic_block);
+	data_block = [SCRATCHPAD + (lseek/512)];
+	if(data_block==-1) then
+		alias i S15;
+		i=24;
+		while(i<448 && [DISK_LIST+i]==1) do
+			i = i+1;
+		endwhile;
+		if(i==448) then
+			[physicalSP-2]=-1;
+			ireturn;
+		endif;
+		[DISK_LIST + i]=1;
+		[SCRATCHPAD + (lseek/512)] = i;
+		[FAT+8*fat+1] = [FAT+8*fat+1]+512;
+		store(5,19);
+		store(6,20);
+		store(1,basic_block);
+		data_block=i;
+	endif;
+	load(1,data_block);
+	[SCRATCHPAD + (lseek%512)] = writeword;
+	store(1,data_block);
+	[currentPCB+15+2*fd+1] = lseek+1;
+	[physicalSP-2]=0;
+endif;
+ireturn;

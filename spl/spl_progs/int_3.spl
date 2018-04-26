@@ -1,0 +1,60 @@
+alias physicalSP S0;
+alias PID S1;
+alias currentPCB S2;
+alias fd S3;
+alias syscallno S4;
+
+physicalSP = ([PTBR + 2*(SP/512)])*512 + (SP%512);
+PID = (PTBR-PAGE_TABLE)/8;
+currentPCB = READY_LIST + 32*PID;
+syscallno = [physicalSP-1];
+fd = [physicalSP-4];
+
+if(fd<0 || fd>7 || [currentPCB+15+2*fd]==-1) then
+	[physicalSP-2]=-1;
+	ireturn;
+endif;
+
+if(syscallno==6) then
+	alias newseek S5;
+	alias ofti S6;
+	alias fat S7;
+	alias file_size S8;
+
+	newseek = [physicalSP-3];
+	ofti = [currentPCB+15+2*fd];
+	fat = [FILE_TABLE+2*ofti];
+	file_size = [FAT+8*fat+1];
+	if(newseek>file_size || newseek<0) then
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;
+	[currentPCB+15+2*fd+1] = newseek;
+	[physicalSP-2]=0;
+endif;
+
+if(syscallno==7) then
+	alias wordread S5;
+	alias ofti S6;
+	alias fat S7;
+	alias lseek S8;
+	alias basic_block S9;
+	alias data_block S10;
+
+	ofti = [currentPCB+15+2*fd];
+	lseek = [currentPCB+15+2*fd+1];
+	fat = [FILE_TABLE+2*ofti];
+	if(lseek == [FAT+8*fat+1]) then
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;
+	basic_block = [FAT+8*fat+2];
+	load(1,basic_block);
+	data_block = [SCRATCHPAD+(lseek/512)];
+	load(1,data_block);
+	wordread = [SCRATCHPAD+(lseek%512)];
+	[physicalSP-3] = wordread;
+	[currentPCB+15+2*fd+1] = lseek+1;
+	[physicalSP-2]=0;
+endif;
+ireturn;
